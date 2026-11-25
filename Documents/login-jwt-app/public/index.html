@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login Form - Auth, Authorization & JWT</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        font-family: "Segoe UI", sans-serif;
+      }
+      body {
+        background: #f3f4f6;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 16px;
+      }
+      .card {
+        background: #fff;
+        padding: 28px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        width: 100%;
+        max-width: 400px;
+      }
+      h2 {
+        margin-top: 0;
+        color: #1f2937;
+        text-align: center;
+      }
+      input,
+      select,
+      button {
+        width: 100%;
+        padding: 10px 12px;
+        margin: 8px 0;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+        font-size: 14px;
+      }
+      button {
+        background: #4f46e5;
+        color: white;
+        border: none;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #4338ca;
+      }
+      .btn-secondary {
+        background: #10b981;
+      }
+      .btn-secondary:hover {
+        background: #059669;
+      }
+      .btn-danger {
+        background: #ef4444;
+      }
+      .btn-danger:hover {
+        background: #dc2626;
+      }
+      .toggle {
+        text-align: center;
+        font-size: 13px;
+        margin-top: 10px;
+        color: #4f46e5;
+        cursor: pointer;
+      }
+      .message {
+        margin-top: 12px;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 13px;
+        background: #eef2ff;
+        color: #1e1b4b;
+        word-break: break-all;
+        display: none;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- FORM LOGIN & REGISTER -->
+    <div class="card" id="authCard">
+      <h2 id="formTitle">Login</h2>
+      <input type="text" id="username" placeholder="Username" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <select id="role" class="hidden">
+        <option value="user">Role: User</option>
+        <option value="admin">Role: Admin</option>
+      </select>
+      <button id="submitBtn" onclick="handleAuth()">Masuk</button>
+      <div class="toggle" id="toggleText" onclick="toggleMode()">
+        Belum punya akun? Daftar di sini
+      </div>
+      <div class="message" id="authMsg"></div>
+    </div>
+
+    <!-- DASHBOARD SETELAH LOGIN -->
+    <div class="card hidden" id="dashboardCard">
+      <h2>Dashboard JWT</h2>
+      <p id="welcomeText" style="text-align: center; font-size: 14px"></p>
+      <button onclick="testProtectedRoute('/api/profile')">
+        Cek Profil (User & Admin)
+      </button>
+      <button class="btn-secondary" onclick="testProtectedRoute('/api/admin')">
+        Cek Panel Admin (Khusus Admin)
+      </button>
+      <button class="btn-danger" onclick="logout()">Logout</button>
+      <div class="message" id="dashMsg"></div>
+    </div>
+
+    <script>
+      let isRegister = false;
+
+      function toggleMode() {
+        isRegister = !isRegister;
+        document.getElementById("formTitle").innerText = isRegister
+          ? "Register"
+          : "Login";
+        document.getElementById("submitBtn").innerText = isRegister
+          ? "Daftar"
+          : "Masuk";
+        document.getElementById("role").classList.toggle("hidden", !isRegister);
+        document.getElementById("toggleText").innerText = isRegister
+          ? "Sudah punya akun? Login di sini"
+          : "Belum punya akun? Daftar di sini";
+        document.getElementById("authMsg").style.display = "none";
+      }
+
+      async function handleAuth() {
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        const role = document.getElementById("role").value;
+        const endpoint = isRegister ? "/api/register" : "/api/login";
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            isRegister ? { username, password, role } : { username, password },
+          ),
+        });
+
+        const data = await res.json();
+        const msgBox = document.getElementById("authMsg");
+        msgBox.style.display = "block";
+        msgBox.innerText = data.message;
+
+        if (!isRegister && res.ok) {
+          localStorage.setItem("jwt_token", data.token);
+          localStorage.setItem("user_info", JSON.stringify(data.user));
+          showDashboard();
+        }
+      }
+
+      function showDashboard() {
+        const user = JSON.parse(localStorage.getItem("user_info"));
+        document.getElementById("authCard").classList.add("hidden");
+        document.getElementById("dashboardCard").classList.remove("hidden");
+        document.getElementById("welcomeText").innerText =
+          `Login sebagai: ${user.username} (Role: ${user.role.toUpperCase()})`;
+      }
+
+      async function testProtectedRoute(endpoint) {
+        const token = localStorage.getItem("jwt_token");
+        const res = await fetch(endpoint, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        const dashMsg = document.getElementById("dashMsg");
+        dashMsg.style.display = "block";
+        dashMsg.innerText =
+          `Status ${res.status}:\n` + JSON.stringify(data, null, 2);
+      }
+
+      function logout() {
+        localStorage.removeItem("jwt_token");
+        localStorage.removeItem("user_info");
+        document.getElementById("dashboardCard").classList.add("hidden");
+        document.getElementById("authCard").classList.remove("hidden");
+        document.getElementById("dashMsg").style.display = "none";
+      }
+
+      if (localStorage.getItem("jwt_token")) showDashboard();
+    </script>
+  </body>
+</html>
